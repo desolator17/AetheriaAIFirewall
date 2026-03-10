@@ -131,8 +131,13 @@ else
   if [[ -z "$INSTALLER_TGZ" ]]; then
     warn "No local installer tarball found in auto-scan locations."
     info "Auto-scan checked: $PWD, $PWD/downloads, $HOME, $HOME/downloads, /root, /root/downloads, /opt, /tmp, /var/tmp, /mnt"
-    read -r -p "Enter portal installer URL now to continue (.tar.gz/.tgz/.tar): " INSTALLER_URL
-    [[ -n "$INSTALLER_URL" ]] || err "No local installer found and no portal URL provided"
+    INSTALLER_URL="${AETHERIA_INSTALLER_URL:-}"
+    while [[ -z "$INSTALLER_URL" ]]; do
+      read -r -p "Enter portal installer URL now to continue (.tar.gz/.tgz/.tar) [or type q to quit]: " INSTALLER_URL
+      if [[ "$INSTALLER_URL" == "q" || "$INSTALLER_URL" == "Q" ]]; then
+        err "No local installer found and no portal URL provided"
+      fi
+    done
     BASE_NAME="$(basename "$INSTALLER_URL")"
     case "$BASE_NAME" in
       *.tar.gz|*.tgz|*.tar) ;;
