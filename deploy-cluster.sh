@@ -559,8 +559,8 @@ for i in "${!roles[@]}"; do
   if ssh_cmd "$ssh_target" "set -euo pipefail; \
     cd '${remote_stage_dir}'; \
     rm -rf aetheria-installer; \
-    tar xzf installer.tar.gz; \
-    cd aetheria-installer; \
+    mkdir -p aetheria-installer; \
+    tar xzf installer.tar.gz -C aetheria-installer --strip-components=1; \
     sudo env \
       AETHERIA_LICENSE_KEY='${AETHERIA_LICENSE_KEY}' \
       AETHERIA_ROLE='${role}' \
@@ -571,7 +571,7 @@ for i in "${!roles[@]}"; do
       AETHERIA_DNS='${MGMT_DNS}' \
       AETHERIA_CTRL_IP='${CTRL1_IP}' \
       AETHERIA_WG_IP='${wg_ip}' \
-      bash node-init.sh --non-interactive"; then
+      bash '${remote_stage_dir}/aetheria-installer/scripts/node-init.sh' --non-interactive"; then
     info "[$name] Completed successfully"
     mark_done "$name"
   else
