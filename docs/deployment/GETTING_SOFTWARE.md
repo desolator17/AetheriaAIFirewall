@@ -11,10 +11,16 @@ You will receive access to download:
 
 ## 2) One-command path (recommended)
 
-Use the cluster deploy script directly and provide your portal URL when prompted:
+Use local mode by default:
 
 ```bash
 bash ./deploy-cluster.sh
+```
+
+Use portal mode only when you need to download the installer from portal:
+
+```bash
+bash ./deploy-cluster.sh --use-portal
 ```
 
 The script can download the installer artifacts for you and then continue with

@@ -13,6 +13,13 @@ Use exactly one script for full deployment:
 bash ./deploy-cluster.sh
 ```
 
+Default mode is local/private artifact auto-detection.
+Use portal mode only when needed:
+
+```bash
+bash ./deploy-cluster.sh --use-portal
+```
+
 The script prompts for:
 - installer source (portal URL or local tarball)
 - deployment scope (FULL, CTRL-only, BRAIN-only, EDGE-only)

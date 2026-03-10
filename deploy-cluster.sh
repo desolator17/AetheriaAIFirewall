@@ -100,24 +100,44 @@ discover_installers() {
 
 install_missing_tools
 
+USE_PORTAL=0
+for arg in "$@"; do
+  case "$arg" in
+    --use-portal)
+      USE_PORTAL=1
+      ;;
+    *)
+      err "Unknown argument: $arg (supported: --use-portal)"
+      ;;
+  esac
+done
+
 WORK_DIR="${PWD}/downloads"
 mkdir -p "$WORK_DIR"
 
 echo "Aetheria Full Cluster Deployment"
 echo "================================"
 echo "This script can deploy FULL cluster or only CTRL/BRAIN/EDGE node groups"
+if [[ "$USE_PORTAL" -eq 1 ]]; then
+  info "Installer source mode: portal URL (--use-portal)"
+else
+  info "Installer source mode: local auto-detect (default)"
+fi
 echo
-
-read -r -p "Use portal download URL for installer? [Y/n]: " USE_URL
-USE_URL="${USE_URL:-Y}"
 
 INSTALLER_TGZ=""
 
-if [[ "$USE_URL" =~ ^[Yy]$ ]]; then
-  read -r -p "Portal installer URL (.tar.gz): " INSTALLER_URL
+if [[ "$USE_PORTAL" -eq 1 ]]; then
+  INSTALLER_URL="${AETHERIA_INSTALLER_URL:-}"
+  while [[ -z "$INSTALLER_URL" ]]; do
+    read -r -p "Portal installer URL (.tar.gz/.tgz/.tar): " INSTALLER_URL
+  done
   [[ -n "$INSTALLER_URL" ]] || err "Installer URL is required"
   BASE_NAME="$(basename "$INSTALLER_URL")"
-  [[ "$BASE_NAME" == *.tar.gz ]] || err "Installer URL must end with .tar.gz"
+  case "$BASE_NAME" in
+    *.tar.gz|*.tgz|*.tar) ;;
+    *) err "Installer URL must end with .tar.gz, .tgz, or .tar" ;;
+  esac
 
   INSTALLER_TGZ="$WORK_DIR/$BASE_NAME"
   info "Downloading installer bundle"
@@ -128,28 +148,7 @@ if [[ "$USE_URL" =~ ^[Yy]$ ]]; then
   curl -fL "${INSTALLER_URL}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
 else
   INSTALLER_TGZ="$(discover_installers)"
-  if [[ -z "$INSTALLER_TGZ" ]]; then
-    warn "No local installer tarball found in auto-scan locations."
-    info "Auto-scan checked: $PWD, $PWD/downloads, $HOME, $HOME/downloads, /root, /root/downloads, /opt, /tmp, /var/tmp, /mnt"
-    INSTALLER_URL="${AETHERIA_INSTALLER_URL:-}"
-    while [[ -z "$INSTALLER_URL" ]]; do
-      read -r -p "Enter portal installer URL now to continue (.tar.gz/.tgz/.tar) [or type q to quit]: " INSTALLER_URL
-      if [[ "$INSTALLER_URL" == "q" || "$INSTALLER_URL" == "Q" ]]; then
-        err "No local installer found and no portal URL provided"
-      fi
-    done
-    BASE_NAME="$(basename "$INSTALLER_URL")"
-    case "$BASE_NAME" in
-      *.tar.gz|*.tgz|*.tar) ;;
-      *) err "Installer URL must end with .tar.gz, .tgz, or .tar" ;;
-    esac
-    INSTALLER_TGZ="$WORK_DIR/$BASE_NAME"
-    info "Downloading installer bundle"
-    curl -fL "$INSTALLER_URL" -o "$INSTALLER_TGZ"
-    info "Downloading checksum and signature (optional if not available)"
-    curl -fL "${INSTALLER_URL}.sha256" -o "${INSTALLER_TGZ}.sha256" || warn "Could not download .sha256"
-    curl -fL "${INSTALLER_URL}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
-  fi
+  [[ -n "$INSTALLER_TGZ" ]] || err "No local installer tarball found. Put installer in /root, /opt, /tmp, /var/tmp, /mnt, or current directory. To download from portal, rerun with --use-portal."
   [[ -f "$INSTALLER_TGZ" ]] || err "Installer tarball not found: $INSTALLER_TGZ"
   info "Auto-selected installer: $INSTALLER_TGZ"
 fi
