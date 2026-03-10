@@ -128,7 +128,23 @@ if [[ "$USE_URL" =~ ^[Yy]$ ]]; then
   curl -fL "${INSTALLER_URL}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
 else
   INSTALLER_TGZ="$(discover_installers)"
-  [[ -n "$INSTALLER_TGZ" ]] || err "No local installer tarball found. Ensure installer exists as .tar.gz/.tgz/.tar under /root, /opt, /tmp, /var/tmp, /mnt, or current directory, or use portal URL mode."
+  if [[ -z "$INSTALLER_TGZ" ]]; then
+    warn "No local installer tarball found in auto-scan locations."
+    info "Auto-scan checked: $PWD, $PWD/downloads, $HOME, $HOME/downloads, /root, /root/downloads, /opt, /tmp, /var/tmp, /mnt"
+    read -r -p "Enter portal installer URL now to continue (.tar.gz/.tgz/.tar): " INSTALLER_URL
+    [[ -n "$INSTALLER_URL" ]] || err "No local installer found and no portal URL provided"
+    BASE_NAME="$(basename "$INSTALLER_URL")"
+    case "$BASE_NAME" in
+      *.tar.gz|*.tgz|*.tar) ;;
+      *) err "Installer URL must end with .tar.gz, .tgz, or .tar" ;;
+    esac
+    INSTALLER_TGZ="$WORK_DIR/$BASE_NAME"
+    info "Downloading installer bundle"
+    curl -fL "$INSTALLER_URL" -o "$INSTALLER_TGZ"
+    info "Downloading checksum and signature (optional if not available)"
+    curl -fL "${INSTALLER_URL}.sha256" -o "${INSTALLER_TGZ}.sha256" || warn "Could not download .sha256"
+    curl -fL "${INSTALLER_URL}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
+  fi
   [[ -f "$INSTALLER_TGZ" ]] || err "Installer tarball not found: $INSTALLER_TGZ"
   info "Auto-selected installer: $INSTALLER_TGZ"
 fi
