@@ -213,6 +213,7 @@ discover_installers() {
   roots+=("$HOME/downloads")
   roots+=("/root")
   roots+=("/root/downloads")
+  roots+=("/var/cache/aetheria")
   roots+=("/opt")
   roots+=("/tmp")
   roots+=("/var/tmp")
