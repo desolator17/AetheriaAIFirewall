@@ -1,0 +1,49 @@
+name: Public Safety Guard
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Block private implementation paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          blocked=0
+          while IFS= read -r f; do
+            case "$f" in
+              src/*|ansible/roles/*|ansible/site.yml|ansible/edge.yml|ansible/brain.yml|ansible/ctrl.yml|packer/*|tests/*|.opencode/*|openspec/*)
+                echo "Blocked private path detected: $f"
+                blocked=1
+                ;;
+            esac
+          done < <(git ls-files)
+          if [[ "$blocked" -ne 0 ]]; then
+            echo "Public repo contains private implementation paths."
+            exit 1
+          fi
+
+      - name: Block sensitive file patterns
+        shell: bash
+        run: |
+          set -euo pipefail
+          blocked=0
+          while IFS= read -r f; do
+            case "$f" in
+              *vault*.yml|*.pem|*.key|*.p12|*.pfx|*.kdbx|*.env|*.env.*|id_rsa|id_ed25519|credentials.json|secrets.json)
+                echo "Blocked sensitive artifact detected: $f"
+                blocked=1
+                ;;
+            esac
+          done < <(git ls-files)
+          if [[ "$blocked" -ne 0 ]]; then
+            echo "Public repo contains sensitive artifact patterns."
+            exit 1
+          fi
