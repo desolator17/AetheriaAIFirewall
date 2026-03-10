@@ -47,3 +47,5 @@ Excluded:
 
 - `docs/deployment/GETTING_SOFTWARE.md`
 - `docs/deployment/CUSTOMER_DEPLOYMENT_PLAN.md`
+- `docs/deployment/SANITIZED_INSTALLER_IMPLEMENTATION_PLAN.md`
+- `docs/deployment/PUBLIC_REPO_AUDIT_2026-03-10.md`
