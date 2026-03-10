@@ -7,29 +7,25 @@ for full six-node rollout.
 
 ## One Script Deployment
 
-Use exactly one script for full deployment:
-
 ```bash
-bash ./deploy-cluster.sh
+sudo bash install-aetheria
 ```
 
-Default mode is local/private artifact auto-detection.
-Use portal mode only when needed:
+That's it. The script:
+1. Finds or builds the node installer bundle automatically
+2. Prompts for deployment scope, node details, and license key
+3. Deploys nodes in order: `CTRL1 → CTRL2 → BRAIN1 → BRAIN2 → EDGE1 → EDGE2`
+
+All flags are passed through to the underlying deployment engine:
 
 ```bash
-bash ./deploy-cluster.sh --use-portal
+sudo bash install-aetheria --use-portal       # download installer from portal URL
+sudo bash install-aetheria --identity FILE    # use SSH key for all connections
+sudo bash install-aetheria --resume           # skip nodes already marked DONE
 ```
 
-The script prompts for:
-- installer source (portal URL or local tarball)
-- deployment scope (FULL, CTRL-only, BRAIN-only, EDGE-only)
-- node role/name/IP/SSH target
-- management network defaults
-- license key
-
-Then it deploys in order:
-
-`CTRL1 -> CTRL2 -> BRAIN1 -> BRAIN2 -> EDGE1 -> EDGE2`
+If the installer bundle cannot be found or built automatically, the script
+prints clear instructions for providing it manually.
 
 ## Command-line flags
 
