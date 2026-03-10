@@ -41,6 +41,8 @@ discover_installers() {
   local roots=()
   roots+=("$PWD")
   roots+=("$PWD/downloads")
+  roots+=("$HOME")
+  roots+=("$HOME/downloads")
   roots+=("/root")
   roots+=("/root/downloads")
 
@@ -50,7 +52,7 @@ discover_installers() {
     [[ -d "$root" ]] || continue
     while IFS= read -r file; do
       found+=("$file")
-    done < <(find "$root" -maxdepth 1 -type f \( -name "aetheria-*-installer.tar.gz" -o -name "*installer*.tar.gz" -o -name "*.tar.gz" \) 2>/dev/null)
+    done < <(find "$root" -maxdepth 6 -type f \( -name "aetheria-*-installer.tar.gz" -o -name "aetheria-*-installer.tgz" -o -name "*installer*.tar.gz" -o -name "*installer*.tgz" -o -name "*.tar.gz" -o -name "*.tgz" \) 2>/dev/null)
   done
 
   if [[ ${#found[@]} -eq 0 ]]; then
