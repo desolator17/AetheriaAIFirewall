@@ -568,17 +568,16 @@ for i in "${!roles[@]}"; do
     rm -rf aetheria-installer; \
     mkdir -p aetheria-installer; \
     tar xzf installer.tar.gz -C aetheria-installer --strip-components=1; \
-    sudo env \
-      AETHERIA_LICENSE_KEY='${AETHERIA_LICENSE_KEY}' \
-      AETHERIA_ROLE='${role}' \
-      AETHERIA_HOSTNAME='${name}' \
-      AETHERIA_IFACE='${MGMT_IFACE}' \
-      AETHERIA_IP_CIDR='${ip_cidr}' \
-      AETHERIA_GATEWAY='${MGMT_GW}' \
-      AETHERIA_DNS='${MGMT_DNS}' \
-      AETHERIA_CTRL_IP='${CTRL1_IP}' \
-      AETHERIA_WG_IP='${wg_ip}' \
-      bash '${remote_stage_dir}/aetheria-installer/scripts/node-init.sh' --non-interactive"; then
+    AETHERIA_LICENSE_KEY='${AETHERIA_LICENSE_KEY}' \
+    AETHERIA_ROLE='${role}' \
+    AETHERIA_HOSTNAME='${name}' \
+    AETHERIA_IFACE='${MGMT_IFACE}' \
+    AETHERIA_IP_CIDR='${ip_cidr}' \
+    AETHERIA_GATEWAY='${MGMT_GW}' \
+    AETHERIA_DNS='${MGMT_DNS}' \
+    AETHERIA_CTRL_IP='${CTRL1_IP}' \
+    AETHERIA_WG_IP='${wg_ip}' \
+    bash '${remote_stage_dir}/aetheria-installer/scripts/node-init.sh' --non-interactive"; then
     info "[$name] Completed successfully"
     mark_done "$name"
   else
