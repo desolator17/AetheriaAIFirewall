@@ -84,7 +84,9 @@ for i in "${!roles[@]}"; do
     default_ssh="rocky@${ip_cidr%%/*}"
   fi
   read -r -p "  SSH target user@host [${default_ssh}]: " ssh_target
-  NODE_SSH[$i]="${ssh_target:-$default_ssh}"
+  ssh_target="${ssh_target:-$default_ssh}"
+  [[ "$ssh_target" == *"@"* ]] || err "SSH target must be in user@host format"
+  NODE_SSH[$i]="$ssh_target"
 done
 
 CTRL1_IP="${NODE_CIDR[0]%%/*}"
@@ -109,14 +111,20 @@ for i in "${!roles[@]}"; do
   ip_cidr="${NODE_CIDR[$i]}"
   ssh_target="${NODE_SSH[$i]}"
   host_ip="${ip_cidr%%/*}"
+  remote_user="${ssh_target%@*}"
+  remote_home="/home/${remote_user}"
+  if [[ "$remote_user" == "root" ]]; then
+    remote_home="/root"
+  fi
+  remote_stage_dir="${remote_home}/.aetheria-bootstrap"
 
-  info "[$name] Copying installer to $ssh_target"
-  ssh -o StrictHostKeyChecking=accept-new "$ssh_target" "mkdir -p /tmp/aetheria-installer"
-  scp -o StrictHostKeyChecking=accept-new "$INSTALLER_TGZ" "$ssh_target:/tmp/aetheria-installer/installer.tar.gz"
+  info "[$name] Copying installer to $ssh_target (${remote_stage_dir})"
+  ssh -o StrictHostKeyChecking=accept-new "$ssh_target" "mkdir -p '${remote_stage_dir}'"
+  scp -o StrictHostKeyChecking=accept-new "$INSTALLER_TGZ" "$ssh_target:${remote_stage_dir}/installer.tar.gz"
 
   info "[$name] Running node-init non-interactive"
   ssh -o StrictHostKeyChecking=accept-new "$ssh_target" "set -euo pipefail; \
-    cd /tmp/aetheria-installer; \
+    cd '${remote_stage_dir}'; \
     rm -rf aetheria-installer; \
     tar xzf installer.tar.gz; \
     cd aetheria-installer; \

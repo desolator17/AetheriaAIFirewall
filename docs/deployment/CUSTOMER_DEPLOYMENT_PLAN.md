@@ -34,6 +34,10 @@ this enforced order:
 The script then copies the installer to each VM, extracts it, and runs
 `node-init.sh --non-interactive` with the prompted values.
 
+Installer staging path is user-home based on the SSH account you provide:
+- `root@...` -> `/root/.aetheria-bootstrap`
+- `rocky@...` -> `/home/rocky/.aetheria-bootstrap`
+
 ## Prerequisites
 
 - Management host has: `bash`, `ssh`, `scp`, `curl`, `tar`
