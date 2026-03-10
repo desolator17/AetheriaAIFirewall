@@ -5,6 +5,9 @@ info() { printf "[INFO] %s\n" "$*"; }
 warn() { printf "[WARN] %s\n" "$*"; }
 err() { printf "[ERR ] %s\n" "$*" >&2; exit 1; }
 
+PUBLIC_REPO="desolator17/AetheriaAIFirewall"
+PUBLIC_RELEASE_API="https://api.github.com/repos/${PUBLIC_REPO}/releases/latest"
+
 require_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
@@ -98,7 +101,33 @@ discover_installers() {
   echo "$newest"
 }
 
+self_update_from_public_repo() {
+  if [[ -d .git ]] && require_cmd git; then
+    info "Refreshing deployment files from public repo"
+    git pull --ff-only >/dev/null 2>&1 || warn "Could not auto-update from git remote; continuing"
+  fi
+}
+
+download_installer_from_public_release() {
+  local release_json asset_url base_name
+  info "Attempting to auto-download installer from public repo release"
+  release_json="$(curl -fsSL "$PUBLIC_RELEASE_API" 2>/dev/null || true)"
+  [[ -n "$release_json" ]] || return 1
+
+  asset_url="$(printf "%s" "$release_json" | grep -Eo 'https://[^"[:space:]]+aetheria-[^"[:space:]]+-installer\.(tar\.gz|tgz|tar)' | head -n1)"
+  [[ -n "$asset_url" ]] || return 1
+
+  base_name="$(basename "$asset_url")"
+  INSTALLER_TGZ="$WORK_DIR/$base_name"
+  curl -fL "$asset_url" -o "$INSTALLER_TGZ"
+  curl -fL "${asset_url}.sha256" -o "${INSTALLER_TGZ}.sha256" || warn "Could not download .sha256"
+  curl -fL "${asset_url}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
+  info "Downloaded installer from public release: $INSTALLER_TGZ"
+  return 0
+}
+
 install_missing_tools
+self_update_from_public_repo
 
 USE_PORTAL=0
 for arg in "$@"; do
@@ -148,7 +177,10 @@ if [[ "$USE_PORTAL" -eq 1 ]]; then
   curl -fL "${INSTALLER_URL}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
 else
   INSTALLER_TGZ="$(discover_installers)"
-  [[ -n "$INSTALLER_TGZ" ]] || err "No local installer tarball found. Put installer in /root, /opt, /tmp, /var/tmp, /mnt, or current directory. To download from portal, rerun with --use-portal."
+  if [[ -z "$INSTALLER_TGZ" ]]; then
+    download_installer_from_public_release || true
+  fi
+  [[ -n "$INSTALLER_TGZ" ]] || err "No local installer tarball found and no installer release asset detected in ${PUBLIC_REPO}. Publish installer artifact to public releases or rerun with --use-portal."
   [[ -f "$INSTALLER_TGZ" ]] || err "Installer tarball not found: $INSTALLER_TGZ"
   info "Auto-selected installer: $INSTALLER_TGZ"
 fi
