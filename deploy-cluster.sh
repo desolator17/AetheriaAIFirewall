@@ -371,10 +371,14 @@ read -r -p "DNS servers (space separated): " MGMT_DNS
 # ---------------------------------------------------------------------------
 # License key (validated before any SSH)
 # ---------------------------------------------------------------------------
-read -r -p "Aetheria license key (eyJ...): " AETHERIA_LICENSE_KEY
-[[ -n "$AETHERIA_LICENSE_KEY" ]] || err "License key is required"
-validate_license_key "$AETHERIA_LICENSE_KEY"
-info "License key format OK."
+read -r -p "Aetheria license key (eyJ...) [Enter for 30-day evaluation]: " AETHERIA_LICENSE_KEY
+if [[ -n "$AETHERIA_LICENSE_KEY" ]]; then
+  validate_license_key "$AETHERIA_LICENSE_KEY"
+  info "License key format OK."
+else
+  info "No license key — nodes will start in 30-day evaluation mode."
+  info "Obtain a license at https://portal.aetheria.io"
+fi
 
 # ---------------------------------------------------------------------------
 # Deployment scope
