@@ -238,51 +238,59 @@ fi
 step "Step 2/3 — Locating installer bundle"
 
 INSTALLER_TGZ=""
-if INSTALLER_TGZ="$(find_installer)"; then
-  info "Found installer: ${INSTALLER_TGZ}"
-else
-  info "No installer tarball found — searching for build script..."
 
+# Always attempt a fresh download into WORK_DIR so the latest published
+# installer is used. Fall through to the cached copy only if the download
+# fails (no network, private environment, etc.).
+mkdir -p "${WORK_DIR}"
+if _download_from_release; then
+  INSTALLER_TGZ="$(find_installer)" || true
+  [[ -n "${INSTALLER_TGZ:-}" ]] && info "Using freshly downloaded installer: ${INSTALLER_TGZ}"
+else
+  info "GitHub download unavailable — falling back to local copy."
+fi
+
+if [[ -z "${INSTALLER_TGZ:-}" ]]; then
+  # Fresh download failed — try local copy first
+  if INSTALLER_TGZ="$(find_installer)"; then
+    info "Found local installer: ${INSTALLER_TGZ}"
+  fi
+fi
+
+if [[ -z "${INSTALLER_TGZ:-}" ]]; then
+  # No local copy — try building from source
+  info "No installer found — searching for build script..."
   BUILD_SCRIPT=""
   if BUILD_SCRIPT="$(find_build_script)"; then
     info "Found build script: ${BUILD_SCRIPT}"
     info "Building installer bundle..."
-    mkdir -p "${WORK_DIR}"
     bash "${BUILD_SCRIPT}" --output-dir "${WORK_DIR}"
     INSTALLER_TGZ="$(find_installer)" || true
   else
     info "Build script not found."
   fi
+fi
 
-  if [[ -z "${INSTALLER_TGZ:-}" ]]; then
-    info "Attempting to download installer from GitHub release..."
-    mkdir -p "${WORK_DIR}"
-    if _download_from_release; then
-      INSTALLER_TGZ="$(find_installer)" || true
-    fi
-  fi
-
-  if [[ -z "${INSTALLER_TGZ:-}" ]]; then
-    echo ""
-    warn "Could not locate, build, or download the installer bundle."
-    echo ""
-    echo "  Provide it one of these ways and re-run:"
-    echo ""
-    echo "  A) Point to the Aetheria source repo:"
-    echo "       AETHERIA_SRC=/path/to/aetheria-src ./install-aetheria"
-    echo ""
-    echo "  B) Point to an existing tarball directory:"
-    echo "       AETHERIA_INSTALLER_DIR=/path/to/dir ./install-aetheria"
-    echo ""
-    echo "  C) Download from portal:"
-    echo "       ./install-aetheria --use-portal"
-    echo ""
-    echo "  D) Copy tarball manually:"
-    echo "       cp aetheria-*-installer.tar.gz ${WORK_DIR}/"
-    echo "       ./install-aetheria"
-    echo ""
-    err "Installer not found. See options above."
-  fi
+if [[ -z "${INSTALLER_TGZ:-}" ]]; then
+  echo ""
+  warn "Could not locate, build, or download the installer bundle."
+  echo ""
+  echo "  Provide it one of these ways and re-run:"
+  echo ""
+  echo "  A) Point to the Aetheria source repo:"
+  echo "       AETHERIA_SRC=/path/to/aetheria-src ./install-aetheria"
+  echo ""
+  echo "  B) Point to an existing tarball directory:"
+  echo "       AETHERIA_INSTALLER_DIR=/path/to/dir ./install-aetheria"
+  echo ""
+  echo "  C) Download from portal:"
+  echo "       ./install-aetheria --use-portal"
+  echo ""
+  echo "  D) Copy tarball manually:"
+  echo "       cp aetheria-*-installer.tar.gz ${WORK_DIR}/"
+  echo "       ./install-aetheria"
+  echo ""
+  err "Installer not found. See options above."
 fi
 
 export AETHERIA_INSTALLER_DIR
