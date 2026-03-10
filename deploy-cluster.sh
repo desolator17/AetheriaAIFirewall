@@ -50,7 +50,7 @@ discover_installers() {
     [[ -d "$root" ]] || continue
     while IFS= read -r file; do
       found+=("$file")
-    done < <(find "$root" -maxdepth 1 -type f -name "aetheria-*-installer.tar.gz" 2>/dev/null)
+    done < <(find "$root" -maxdepth 1 -type f \( -name "aetheria-*-installer.tar.gz" -o -name "*.tar.gz" \) 2>/dev/null)
   done
 
   if [[ ${#found[@]} -eq 0 ]]; then
@@ -121,16 +121,22 @@ if [[ "$USE_URL" =~ ^[Yy]$ ]]; then
   curl -fL "${INSTALLER_URL}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
 else
   INSTALLER_TGZ="$(discover_installers)"
-  if [[ -z "$INSTALLER_TGZ" ]]; then
-    read -r -p "Local installer tarball path: " INSTALLER_TGZ
-  else
+  if [[ -n "$INSTALLER_TGZ" ]]; then
     info "Using installer: $INSTALLER_TGZ"
     read -r -p "Use this installer? [Y/n]: " USE_DETECTED
     if [[ "${USE_DETECTED:-Y}" =~ ^[Nn]$ ]]; then
-      read -r -p "Local installer tarball path: " INSTALLER_TGZ
+      INSTALLER_TGZ=""
     fi
   fi
-  [[ -f "$INSTALLER_TGZ" ]] || err "Installer tarball not found: $INSTALLER_TGZ"
+
+  while [[ -z "$INSTALLER_TGZ" || ! -f "$INSTALLER_TGZ" ]]; do
+    if [[ -n "$INSTALLER_TGZ" && ! -f "$INSTALLER_TGZ" ]]; then
+      warn "Installer tarball not found: $INSTALLER_TGZ"
+    fi
+    read -r -p "Local installer tarball path (or drag-drop full path): " INSTALLER_TGZ
+    INSTALLER_TGZ="${INSTALLER_TGZ//\"/}"
+    [[ -n "$INSTALLER_TGZ" ]] || warn "Path cannot be empty"
+  done
 fi
 
 read -r -p "Management interface [eth0]: " MGMT_IFACE
