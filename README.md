@@ -33,14 +33,15 @@ Then it deploys in order:
 
 ## Command-line flags
 
-| Flag               | Description |
-|--------------------|-------------|
-| (none)             | Local installer auto-detect mode |
-| `--use-portal`     | Download installer from portal URL |
-| `--identity FILE`  | SSH private key for all connections |
-| `--resume`         | Skip nodes already marked DONE in `.deploy-state` |
-| `--force`          | Re-deploy even if marked DONE |
-| `--skip-preflight` | Skip SSH connectivity pre-flight |
+| Flag / Env var              | Description |
+|-----------------------------|-------------|
+| (none)                      | Local installer auto-detect mode |
+| `--use-portal`              | Download installer from portal URL |
+| `--identity FILE`           | SSH private key for all connections |
+| `--resume`                  | Skip nodes already marked DONE in `.deploy-state` |
+| `--force`                   | Re-deploy even if marked DONE |
+| `--skip-preflight`          | Skip SSH connectivity pre-flight |
+| `AETHERIA_INSTALLER_DIR`    | Directory to search first for the installer tarball |
 
 ## SSH setup
 

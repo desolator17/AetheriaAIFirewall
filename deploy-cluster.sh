@@ -205,6 +205,8 @@ install_missing_tools() {
 # ---------------------------------------------------------------------------
 discover_installers() {
   local roots=()
+  # Operator-specified directory takes priority
+  [[ -n "${AETHERIA_INSTALLER_DIR:-}" ]] && roots+=("$AETHERIA_INSTALLER_DIR")
   roots+=("$PWD")
   roots+=("$PWD/downloads")
   roots+=("$HOME")
