@@ -45,6 +45,10 @@ discover_installers() {
   roots+=("$HOME/downloads")
   roots+=("/root")
   roots+=("/root/downloads")
+  roots+=("/opt")
+  roots+=("/tmp")
+  roots+=("/var/tmp")
+  roots+=("/mnt")
 
   local found=()
   local root
@@ -52,8 +56,15 @@ discover_installers() {
     [[ -d "$root" ]] || continue
     while IFS= read -r file; do
       found+=("$file")
-    done < <(find "$root" -maxdepth 6 -type f \( -name "aetheria-*-installer.tar.gz" -o -name "aetheria-*-installer.tgz" -o -name "*installer*.tar.gz" -o -name "*installer*.tgz" -o -name "*.tar.gz" -o -name "*.tgz" \) 2>/dev/null)
+    done < <(find "$root" -maxdepth 6 -type f \( -name "aetheria-*-installer.tar.gz" -o -name "aetheria-*-installer.tgz" -o -name "aetheria-*-installer.tar" -o -name "*installer*.tar.gz" -o -name "*installer*.tgz" -o -name "*installer*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar" \) 2>/dev/null)
   done
+
+  if [[ ${#found[@]} -eq 0 ]]; then
+    # broad fallback scan
+    while IFS= read -r file; do
+      found+=("$file")
+    done < <(find / -maxdepth 6 -type f \( -name "aetheria-*-installer.tar.gz" -o -name "aetheria-*-installer.tgz" -o -name "aetheria-*-installer.tar" -o -name "*installer*.tar.gz" -o -name "*installer*.tgz" -o -name "*installer*.tar" \) 2>/dev/null)
+  fi
 
   if [[ ${#found[@]} -eq 0 ]]; then
     echo ""
@@ -117,7 +128,7 @@ if [[ "$USE_URL" =~ ^[Yy]$ ]]; then
   curl -fL "${INSTALLER_URL}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
 else
   INSTALLER_TGZ="$(discover_installers)"
-  [[ -n "$INSTALLER_TGZ" ]] || err "No local installer tarball found. Place a .tar.gz in /root or ./downloads, or choose portal URL mode."
+  [[ -n "$INSTALLER_TGZ" ]] || err "No local installer tarball found. Ensure installer exists as .tar.gz/.tgz/.tar under /root, /opt, /tmp, /var/tmp, /mnt, or current directory, or use portal URL mode."
   [[ -f "$INSTALLER_TGZ" ]] || err "Installer tarball not found: $INSTALLER_TGZ"
   info "Auto-selected installer: $INSTALLER_TGZ"
 fi
