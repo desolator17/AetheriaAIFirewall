@@ -50,7 +50,7 @@ discover_installers() {
     [[ -d "$root" ]] || continue
     while IFS= read -r file; do
       found+=("$file")
-    done < <(find "$root" -maxdepth 1 -type f \( -name "aetheria-*-installer.tar.gz" -o -name "*.tar.gz" \) 2>/dev/null)
+    done < <(find "$root" -maxdepth 1 -type f \( -name "aetheria-*-installer.tar.gz" -o -name "*installer*.tar.gz" -o -name "*.tar.gz" \) 2>/dev/null)
   done
 
   if [[ ${#found[@]} -eq 0 ]]; then
@@ -75,13 +75,13 @@ discover_installers() {
     return
   fi
 
-  echo
-  echo "Detected installer tarballs:"
+  echo >&2
+  echo "Detected installer tarballs:" >&2
   local i
   for i in "${!unique[@]}"; do
-    printf "  %d) %s\n" "$((i + 1))" "${unique[$i]}"
+    printf "  %d) %s\n" "$((i + 1))" "${unique[$i]}" >&2
   done
-  read -r -p "Select installer [1-${#unique[@]}] (or press Enter to type manually): " pick
+  read -r -p "Select installer [1-${#unique[@]}] (or press Enter to type manually): " pick >&2
   if [[ -z "$pick" ]]; then
     echo ""
     return
