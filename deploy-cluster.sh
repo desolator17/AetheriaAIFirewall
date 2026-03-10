@@ -37,6 +37,60 @@ install_missing_tools() {
   done
 }
 
+discover_installers() {
+  local roots=()
+  roots+=("$PWD")
+  roots+=("$PWD/downloads")
+  roots+=("/root")
+  roots+=("/root/downloads")
+
+  local found=()
+  local root
+  for root in "${roots[@]}"; do
+    [[ -d "$root" ]] || continue
+    while IFS= read -r file; do
+      found+=("$file")
+    done < <(find "$root" -maxdepth 1 -type f -name "aetheria-*-installer.tar.gz" 2>/dev/null)
+  done
+
+  if [[ ${#found[@]} -eq 0 ]]; then
+    echo ""
+    return
+  fi
+
+  # de-duplicate while preserving order
+  local unique=()
+  local f
+  for f in "${found[@]}"; do
+    local seen=0
+    local u
+    for u in "${unique[@]}"; do
+      [[ "$u" == "$f" ]] && seen=1 && break
+    done
+    [[ "$seen" -eq 0 ]] && unique+=("$f")
+  done
+
+  if [[ ${#unique[@]} -eq 1 ]]; then
+    echo "${unique[0]}"
+    return
+  fi
+
+  echo
+  echo "Detected installer tarballs:"
+  local i
+  for i in "${!unique[@]}"; do
+    printf "  %d) %s\n" "$((i + 1))" "${unique[$i]}"
+  done
+  read -r -p "Select installer [1-${#unique[@]}] (or press Enter to type manually): " pick
+  if [[ -z "$pick" ]]; then
+    echo ""
+    return
+  fi
+  [[ "$pick" =~ ^[0-9]+$ ]] || err "Invalid selection"
+  (( pick >= 1 && pick <= ${#unique[@]} )) || err "Selection out of range"
+  echo "${unique[$((pick - 1))]}"
+}
+
 install_missing_tools
 
 WORK_DIR="${PWD}/downloads"
@@ -66,7 +120,16 @@ if [[ "$USE_URL" =~ ^[Yy]$ ]]; then
   curl -fL "${INSTALLER_URL}.sha256" -o "${INSTALLER_TGZ}.sha256" || warn "Could not download .sha256"
   curl -fL "${INSTALLER_URL}.asc" -o "${INSTALLER_TGZ}.asc" || warn "Could not download .asc"
 else
-  read -r -p "Local installer tarball path: " INSTALLER_TGZ
+  INSTALLER_TGZ="$(discover_installers)"
+  if [[ -z "$INSTALLER_TGZ" ]]; then
+    read -r -p "Local installer tarball path: " INSTALLER_TGZ
+  else
+    info "Using installer: $INSTALLER_TGZ"
+    read -r -p "Use this installer? [Y/n]: " USE_DETECTED
+    if [[ "${USE_DETECTED:-Y}" =~ ^[Nn]$ ]]; then
+      read -r -p "Local installer tarball path: " INSTALLER_TGZ
+    fi
+  fi
   [[ -f "$INSTALLER_TGZ" ]] || err "Installer tarball not found: $INSTALLER_TGZ"
 fi
 
@@ -134,7 +197,6 @@ for i in "${!roles[@]}"; do
   name="${names[$i]}"
   ip_cidr="${NODE_CIDR[$i]}"
   ssh_target="${NODE_SSH[$i]}"
-  host_ip="${ip_cidr%%/*}"
   remote_user="${ssh_target%@*}"
   remote_home="/home/${remote_user}"
   if [[ "$remote_user" == "root" ]]; then

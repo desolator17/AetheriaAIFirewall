@@ -14,7 +14,7 @@ You will receive access to download:
 Use the cluster deploy script directly and provide your portal URL when prompted:
 
 ```bash
-bash scripts/deploy-cluster.sh
+bash ./deploy-cluster.sh
 ```
 
 The script can download the installer artifacts for you and then continue with

@@ -10,7 +10,7 @@ for full six-node rollout.
 Use exactly one script for full deployment:
 
 ```bash
-bash scripts/deploy-cluster.sh
+bash ./deploy-cluster.sh
 ```
 
 The script prompts for:

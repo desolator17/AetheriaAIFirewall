@@ -3,7 +3,7 @@
 This repository supports a single operator entrypoint for full cluster deployment:
 
 ```bash
-bash scripts/deploy-cluster.sh
+bash ./deploy-cluster.sh
 ```
 
 The script drives the full sequence with interactive prompts and deploys nodes in
