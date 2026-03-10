@@ -4,8 +4,9 @@ set -euo pipefail
 # =============================================================================
 # install-aetheria — single-command Aetheria cluster installer
 #
-# Locates or builds the node installer bundle, then runs the full cluster
-# deployment. All flags are passed through to deploy-cluster.sh.
+# Locates or builds the node installer bundle, sets up SSH key auth for
+# root, then runs the full cluster deployment.
+# All deploy-cluster.sh flags are passed through.
 #
 # Usage:
 #   sudo bash install-aetheria [--use-portal] [--identity FILE] [--resume]
@@ -21,8 +22,8 @@ WORK_DIR="${SCRIPT_DIR}/downloads"
 CACHE_DIR="/var/cache/aetheria"
 PUBLIC_REPO="desolator17/AetheriaAIFirewall"
 RELEASE_API="https://api.github.com/repos/${PUBLIC_REPO}/releases/latest"
+DEPLOY_KEY_FILE="/root/.ssh/aetheria_deploy"
 
-# $'...' syntax ensures escape sequences are actual bytes, not literal strings
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[1;33m'
 CYAN=$'\033[0;36m'; NC=$'\033[0m'
 
@@ -30,6 +31,70 @@ info() { printf "${GREEN}[INFO]${NC}  %s\n" "$*"; }
 warn() { printf "${YELLOW}[WARN]${NC}  %s\n" "$*"; }
 err()  { printf "${RED}[ERR ]${NC}  %s\n" "$*" >&2; exit 1; }
 step() { printf "\n${CYAN}>>> %s${NC}\n" "$*"; }
+
+# ---------------------------------------------------------------------------
+# Check if the caller already passed --identity
+# ---------------------------------------------------------------------------
+_caller_has_identity() {
+  local a _prev=""
+  for a in "$@"; do
+    [[ "$_prev" == "--identity" ]] && return 0
+    [[ "$a" == --identity=* ]]    && return 0
+    _prev="$a"
+  done
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# SSH setup — generate deployment key, authorise it locally, enable root login
+# ---------------------------------------------------------------------------
+setup_ssh() {
+  step "Step 1/3 — SSH setup"
+
+  local key="${DEPLOY_KEY_FILE}"
+  mkdir -p /root/.ssh
+  chmod 700 /root/.ssh
+
+  # Generate a dedicated deployment keypair if absent
+  if [[ ! -f "$key" ]]; then
+    ssh-keygen -t ed25519 -f "$key" -N "" -C "aetheria-deploy" >/dev/null
+    info "Generated deployment key: ${key}"
+  else
+    info "Deployment key exists: ${key}"
+  fi
+
+  # Ensure the public key is in authorized_keys (idempotent)
+  touch /root/.ssh/authorized_keys
+  chmod 600 /root/.ssh/authorized_keys
+  local pubkey
+  pubkey="$(cat "${key}.pub")"
+  if ! grep -qF "$pubkey" /root/.ssh/authorized_keys 2>/dev/null; then
+    echo "$pubkey" >> /root/.ssh/authorized_keys
+    info "Added deployment key to /root/.ssh/authorized_keys"
+  fi
+
+  # Enable PermitRootLogin (key-only — no password) in sshd_config
+  local sshd_config="/etc/ssh/sshd_config"
+  if [[ -f "$sshd_config" ]]; then
+    local current
+    current=$(grep -E "^PermitRootLogin" "$sshd_config" | awk '{print $2}' | tail -1)
+    if [[ "$current" != "prohibit-password" && "$current" != "yes" ]]; then
+      if grep -qE "^#*PermitRootLogin" "$sshd_config"; then
+        sed -i 's/^#*PermitRootLogin.*/PermitRootLogin prohibit-password/' "$sshd_config"
+      else
+        echo "PermitRootLogin prohibit-password" >> "$sshd_config"
+      fi
+      info "Set PermitRootLogin prohibit-password in ${sshd_config}"
+
+      # Reload sshd gracefully
+      if command -v systemctl >/dev/null 2>&1; then
+        systemctl reload sshd 2>/dev/null || systemctl reload ssh 2>/dev/null || true
+      elif command -v rc-service >/dev/null 2>&1; then
+        rc-service sshd reload 2>/dev/null || true
+      fi
+    fi
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # Find installer tarball in known locations (most specific first, no broad scan)
@@ -59,27 +124,21 @@ find_installer() {
 }
 
 # ---------------------------------------------------------------------------
-# Locate build-installer.sh.
-# Uses find(1) rather than glob expansion to avoid permission-denied silences.
-# Searches: AETHERIA_SRC → sibling dirs → /home, /root, /opt (maxdepth 5)
+# Locate build-installer.sh without hardcoding private paths.
+# Uses find(1) to handle 750 home dirs and SELinux without silent failures.
 # ---------------------------------------------------------------------------
 find_build_script() {
-  # 1. Explicit env var override
   if [[ -n "${AETHERIA_SRC:-}" ]] && [[ -f "${AETHERIA_SRC}/scripts/build-installer.sh" ]]; then
     echo "${AETHERIA_SRC}/scripts/build-installer.sh"
     return 0
   fi
 
-  # 2. Sibling directories alongside this repo
-  #    e.g. ~/aetheria-public/ and ~/aetheria/ sit side-by-side under ~/
   local parent result
   parent="$(dirname "$SCRIPT_DIR")"
   result=$(find "$parent" -maxdepth 3 -name "build-installer.sh" \
            -path "*/scripts/build-installer.sh" 2>/dev/null | head -1)
   [[ -n "$result" ]] && echo "$result" && return 0
 
-  # 3. Any home directory subtree — try as root first, then re-run as each
-  #    directory owner in case the home dir is mode 750 (root can't traverse)
   result=$(find /home -maxdepth 5 -name "build-installer.sh" \
            -path "*/scripts/build-installer.sh" 2>/dev/null | head -1)
   [[ -n "$result" ]] && echo "$result" && return 0
@@ -96,12 +155,10 @@ find_build_script() {
     done
   fi
 
-  # 4. Root home subtree
   result=$(find /root -maxdepth 4 -name "build-installer.sh" \
            -path "*/scripts/build-installer.sh" 2>/dev/null | head -1)
   [[ -n "$result" ]] && echo "$result" && return 0
 
-  # 5. Common system install locations
   result=$(find /opt /usr/local -maxdepth 4 -name "build-installer.sh" \
            -path "*/scripts/build-installer.sh" 2>/dev/null | head -1)
   [[ -n "$result" ]] && echo "$result" && return 0
@@ -110,9 +167,7 @@ find_build_script() {
 }
 
 # ---------------------------------------------------------------------------
-# Download installer from GitHub release.
-# Tries /releases/latest first (stable only), then /releases (includes
-# pre-releases), so dev builds published with --prerelease are also found.
+# Download installer from GitHub release (latest stable, then pre-releases)
 # ---------------------------------------------------------------------------
 _download_from_release() {
   command -v curl >/dev/null 2>&1 || return 1
@@ -124,11 +179,9 @@ _download_from_release() {
       head -1
   }
 
-  # 1. Latest stable release
   release_json="$(curl -fsSL "${RELEASE_API}" 2>/dev/null)" || true
   asset_url="$(_parse_asset_url "$release_json")"
 
-  # 2. Fall back to all releases list (catches pre-releases)
   if [[ -z "$asset_url" ]]; then
     release_json="$(curl -fsSL "https://api.github.com/repos/${PUBLIC_REPO}/releases" 2>/dev/null)" || true
     asset_url="$(_parse_asset_url "$release_json")"
@@ -143,9 +196,10 @@ _download_from_release() {
   info "Download complete: ${WORK_DIR}/${base_name}"
 }
 
-# ---------------------------------------------------------------------------
-# Banner
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# Main
+# ===========================================================================
+
 printf "${CYAN}"
 cat <<'BANNER'
 
@@ -162,10 +216,23 @@ echo "  Aetheria AI Firewall Suite — Cluster Installer"
 echo "  ================================================"
 echo ""
 
+[[ "$(id -u)" -eq 0 ]] || err "install-aetheria must be run as root (sudo bash install-aetheria)"
+
 # ---------------------------------------------------------------------------
-# Step 1: Locate installer tarball
+# Step 1: SSH setup (skip if operator supplied --identity)
 # ---------------------------------------------------------------------------
-step "Step 1/2 — Locating installer bundle"
+IDENTITY_ARGS=()
+if _caller_has_identity "$@"; then
+  info "Using caller-supplied --identity; skipping SSH auto-setup."
+else
+  setup_ssh
+  IDENTITY_ARGS=(--identity "${DEPLOY_KEY_FILE}")
+fi
+
+# ---------------------------------------------------------------------------
+# Step 2: Locate installer tarball
+# ---------------------------------------------------------------------------
+step "Step 2/3 — Locating installer bundle"
 
 INSTALLER_TGZ=""
 if INSTALLER_TGZ="$(find_installer)"; then
@@ -219,10 +286,11 @@ export AETHERIA_INSTALLER_DIR
 AETHERIA_INSTALLER_DIR="$(dirname "${INSTALLER_TGZ}")"
 
 # ---------------------------------------------------------------------------
-# Step 2: Run deploy-cluster.sh
+# Step 3: Run deploy-cluster.sh
 # ---------------------------------------------------------------------------
-step "Step 2/2 — Starting cluster deployment"
+step "Step 3/3 — Starting cluster deployment"
 info "Installer: ${INSTALLER_TGZ}"
+[[ ${#IDENTITY_ARGS[@]} -gt 0 ]] && info "SSH key:    ${DEPLOY_KEY_FILE}"
 echo ""
 
-exec "${SCRIPT_DIR}/deploy-cluster.sh" "$@"
+exec "${SCRIPT_DIR}/deploy-cluster.sh" "${IDENTITY_ARGS[@]}" "$@"
