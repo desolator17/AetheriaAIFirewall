@@ -6,14 +6,38 @@ warn() { printf "[WARN] %s\n" "$*"; }
 err() { printf "[ERR ] %s\n" "$*" >&2; exit 1; }
 
 require_cmd() {
-  command -v "$1" >/dev/null 2>&1 || err "Missing required command: $1"
+  command -v "$1" >/dev/null 2>&1
 }
 
-require_cmd bash
-require_cmd ssh
-require_cmd scp
-require_cmd curl
-require_cmd tar
+install_missing_tools() {
+  local missing=()
+  for c in bash ssh scp curl tar; do
+    require_cmd "$c" || missing+=("$c")
+  done
+
+  [[ ${#missing[@]} -eq 0 ]] && return 0
+
+  warn "Missing required tools: ${missing[*]}"
+  info "Attempting to install prerequisites on this management host"
+
+  if require_cmd dnf; then
+    sudo dnf install -y tar curl openssh-clients || err "Failed to install prerequisites via dnf"
+  elif require_cmd yum; then
+    sudo yum install -y tar curl openssh-clients || err "Failed to install prerequisites via yum"
+  elif require_cmd apt-get; then
+    sudo apt-get update && sudo apt-get install -y tar curl openssh-client || err "Failed to install prerequisites via apt-get"
+  elif require_cmd apk; then
+    sudo apk add --no-cache tar curl openssh-client || err "Failed to install prerequisites via apk"
+  else
+    err "Unsupported package manager. Install manually: tar curl ssh scp"
+  fi
+
+  for c in bash ssh scp curl tar; do
+    require_cmd "$c" || err "Missing required command after install: $c"
+  done
+}
+
+install_missing_tools
 
 WORK_DIR="${PWD}/downloads"
 mkdir -p "$WORK_DIR"
