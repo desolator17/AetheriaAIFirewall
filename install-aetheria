@@ -76,10 +76,23 @@ find_build_script() {
            -path "*/scripts/build-installer.sh" 2>/dev/null | head -1)
   [[ -n "$result" ]] && echo "$result" && return 0
 
-  # 3. Any home directory subtree (catches /home/<user>/<repo>/scripts/)
+  # 3. Any home directory subtree — try as root first, then re-run as each
+  #    directory owner in case the home dir is mode 750 (root can't traverse)
   result=$(find /home -maxdepth 5 -name "build-installer.sh" \
            -path "*/scripts/build-installer.sh" 2>/dev/null | head -1)
   [[ -n "$result" ]] && echo "$result" && return 0
+
+  if [[ "$(id -u)" -eq 0 ]] && command -v runuser >/dev/null 2>&1; then
+    local u
+    for u in /home/*/; do
+      [[ -d "$u" ]] || continue
+      u="$(basename "$u")"
+      result=$(runuser -u "$u" -- find "/home/${u}" -maxdepth 4 \
+               -name "build-installer.sh" -path "*/scripts/build-installer.sh" \
+               2>/dev/null | head -1) || true
+      [[ -n "$result" ]] && echo "$result" && return 0
+    done
+  fi
 
   # 4. Root home subtree
   result=$(find /root -maxdepth 4 -name "build-installer.sh" \
