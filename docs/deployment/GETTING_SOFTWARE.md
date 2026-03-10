@@ -1,25 +1,31 @@
-# Getting Aetheria Software
+# Getting Software
 
-1. Purchase/activate your license at `https://portal.aetheria.io`.
-2. From your portal account, copy the installer URL for:
-   - `aetheria-<version>-installer.tar.gz`
-3. Download bundle + checksum + signature:
-   ```bash
-   bash scripts/pull-installer.sh \
-     --url "<portal-download-url>/aetheria-<version>-installer.tar.gz" \
-     --out ./downloads
-   ```
-4. Verify integrity:
-   ```bash
-   cd downloads
-   gpg --import aetheria-release-key.asc
-   gpg --verify aetheria-<version>-installer.tar.gz.asc aetheria-<version>-installer.tar.gz
-   sha256sum -c aetheria-<version>-installer.tar.gz.sha256
-   ```
-5. Extract and continue with deployment plan:
-   ```bash
-   tar xzf aetheria-<version>-installer.tar.gz
-   cd aetheria-installer
-   ```
+## 1) Obtain access
 
-If any verification step fails, stop and contact support.
+Purchase or activate your license at `https://portal.aetheria.io`.
+
+You will receive access to download:
+- `aetheria-<version>-installer.tar.gz`
+- `aetheria-<version>-installer.tar.gz.sha256`
+- `aetheria-<version>-installer.tar.gz.asc`
+
+## 2) One-command path (recommended)
+
+Use the cluster deploy script directly and provide your portal URL when prompted:
+
+```bash
+bash scripts/deploy-cluster.sh
+```
+
+The script can download the installer artifacts for you and then continue with
+cluster deployment.
+
+## 3) Manual verification (if you downloaded separately)
+
+```bash
+gpg --import aetheria-release-key.asc
+gpg --verify aetheria-<version>-installer.tar.gz.asc aetheria-<version>-installer.tar.gz
+sha256sum -c aetheria-<version>-installer.tar.gz.sha256
+```
+
+If any verification step fails, stop deployment and contact support.

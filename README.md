@@ -1,35 +1,41 @@
-# Aetheria AI Firewall - Public Installer Access
+# Aetheria AI Firewall - Public Customer Bootstrap
 
-This repository is the **public customer bootstrap repo** for Aetheria deployments.
-It intentionally excludes private source code and internal engineering assets.
+This repository is the public customer bootstrap surface for Aetheria.
 
-Use this repo to:
-- pull the signed installer bundle,
-- verify integrity/signature,
-- follow the deployment order for `CTRL1 -> CTRL2 -> BRAIN1 -> BRAIN2 -> EDGE1 -> EDGE2`.
+It is intentionally limited to deployment guides and a single interactive script
+for full six-node rollout.
 
-## What is in this repo
+## One Script Deployment
 
-- `scripts/pull-installer.sh` - helper to download installer artifacts from your portal URL
-- `docs/deployment/GETTING_SOFTWARE.md` - software acquisition and verification guide
-- `docs/deployment/CUSTOMER_DEPLOYMENT_PLAN.md` - end-to-end deployment sequence
+Use exactly one script for full deployment:
 
-## What is NOT in this repo
+```bash
+bash scripts/deploy-cluster.sh
+```
 
+The script prompts for:
+- installer source (portal URL or local tarball)
+- node role/name/IP/SSH target
+- management network defaults
+- license key
+
+Then it deploys in order:
+
+`CTRL1 -> CTRL2 -> BRAIN1 -> BRAIN2 -> EDGE1 -> EDGE2`
+
+## Repository scope
+
+Included:
+- customer-safe docs
+- bootstrap deployment script
+- security contact guidance
+
+Excluded:
 - private source code
-- internal build pipelines
-- internal test assets
-- signing private keys or vault secrets
+- internal CI/CD and engineering assets
+- secrets and signing private keys
 
-## Quick start
+## Documentation
 
-1. Get your license and download URL from `https://portal.aetheria.io`.
-2. Download artifacts:
-   ```bash
-   bash scripts/pull-installer.sh \
-     --url "<portal-download-url>/aetheria-<version>-installer.tar.gz" \
-     --out ./downloads
-   ```
-3. Verify and deploy using:
-   - `docs/deployment/GETTING_SOFTWARE.md`
-   - `docs/deployment/CUSTOMER_DEPLOYMENT_PLAN.md`
+- `docs/deployment/GETTING_SOFTWARE.md`
+- `docs/deployment/CUSTOMER_DEPLOYMENT_PLAN.md`
