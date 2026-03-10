@@ -110,17 +110,32 @@ find_build_script() {
 }
 
 # ---------------------------------------------------------------------------
-# Download installer from latest GitHub release
+# Download installer from GitHub release.
+# Tries /releases/latest first (stable only), then /releases (includes
+# pre-releases), so dev builds published with --prerelease are also found.
 # ---------------------------------------------------------------------------
 _download_from_release() {
   command -v curl >/dev/null 2>&1 || return 1
-  local release_json asset_url base_name
-  release_json="$(curl -fsSL "${RELEASE_API}" 2>/dev/null)" || return 1
-  [[ -n "$release_json" ]] || return 1
-  asset_url="$(printf '%s' "$release_json" | \
-    grep -Eo 'https://[^"[:space:]]+aetheria-[^"[:space:]]+-installer\.(tar\.gz|tgz|tar)' | \
-    head -1)"
+  local asset_url base_name release_json
+
+  _parse_asset_url() {
+    printf '%s' "$1" | \
+      grep -Eo 'https://[^"[:space:]]+aetheria-[^"[:space:]]+-installer\.(tar\.gz|tgz|tar)' | \
+      head -1
+  }
+
+  # 1. Latest stable release
+  release_json="$(curl -fsSL "${RELEASE_API}" 2>/dev/null)" || true
+  asset_url="$(_parse_asset_url "$release_json")"
+
+  # 2. Fall back to all releases list (catches pre-releases)
+  if [[ -z "$asset_url" ]]; then
+    release_json="$(curl -fsSL "https://api.github.com/repos/${PUBLIC_REPO}/releases" 2>/dev/null)" || true
+    asset_url="$(_parse_asset_url "$release_json")"
+  fi
+
   [[ -n "$asset_url" ]] || return 1
+
   base_name="$(basename "$asset_url")"
   info "Downloading ${base_name} from GitHub release..."
   curl -fL "$asset_url" -o "${WORK_DIR}/${base_name}" || return 1
