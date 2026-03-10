@@ -77,9 +77,10 @@ setup_ssh() {
   local sshd_config="/etc/ssh/sshd_config"
   if [[ -f "$sshd_config" ]]; then
     local current
-    current=$(grep -E "^PermitRootLogin" "$sshd_config" | awk '{print $2}' | tail -1)
+    # grep exits 1 when no match — || true prevents set -e from aborting
+    current=$(grep -E "^PermitRootLogin" "$sshd_config" 2>/dev/null | awk '{print $2}' | tail -1 || true)
     if [[ "$current" != "prohibit-password" && "$current" != "yes" ]]; then
-      if grep -qE "^#*PermitRootLogin" "$sshd_config"; then
+      if grep -qE "^#*PermitRootLogin" "$sshd_config" 2>/dev/null; then
         sed -i 's/^#*PermitRootLogin.*/PermitRootLogin prohibit-password/' "$sshd_config"
       else
         echo "PermitRootLogin prohibit-password" >> "$sshd_config"
@@ -92,6 +93,8 @@ setup_ssh() {
       elif command -v rc-service >/dev/null 2>&1; then
         rc-service sshd reload 2>/dev/null || true
       fi
+    else
+      info "PermitRootLogin already set to '${current}' — no change needed"
     fi
   fi
 }
