@@ -15,6 +15,7 @@ bash ./deploy-cluster.sh
 
 The script prompts for:
 - installer source (portal URL or local tarball)
+- deployment scope (FULL, CTRL-only, BRAIN-only, EDGE-only)
 - node role/name/IP/SSH target
 - management network defaults
 - license key

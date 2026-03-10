@@ -98,7 +98,7 @@ mkdir -p "$WORK_DIR"
 
 echo "Aetheria Full Cluster Deployment"
 echo "================================"
-echo "This script deploys: CTRL1 -> CTRL2 -> BRAIN1 -> BRAIN2 -> EDGE1 -> EDGE2"
+echo "This script can deploy FULL cluster or only CTRL/BRAIN/EDGE node groups"
 echo
 
 read -r -p "Use portal download URL for installer? [Y/n]: " USE_URL
@@ -151,8 +151,67 @@ read -r -p "DNS servers (space separated): " MGMT_DNS
 read -r -p "Aetheria license key (eyJ...): " AETHERIA_LICENSE_KEY
 [[ -n "$AETHERIA_LICENSE_KEY" ]] || err "License key is required"
 
-roles=("ctrl" "ctrl-standby" "brain" "brain" "edge" "edge")
-names=("ctrl1" "ctrl2" "brain1" "brain2" "edge1" "edge2")
+echo
+echo "Deployment scope"
+echo "----------------"
+echo "  1) FULL  (CTRL1, CTRL2, BRAIN1, BRAIN2, EDGE1, EDGE2)"
+echo "  2) CTRL only"
+echo "  3) BRAIN only"
+echo "  4) EDGE only"
+read -r -p "Select scope [1-4]: " DEPLOY_SCOPE
+
+roles=()
+names=()
+
+case "$DEPLOY_SCOPE" in
+  1)
+    roles=("ctrl" "ctrl-standby" "brain" "brain" "edge" "edge")
+    names=("ctrl1" "ctrl2" "brain1" "brain2" "edge1" "edge2")
+    ;;
+  2)
+    read -r -p "Deploy both CTRL nodes (primary+standby)? [Y/n]: " BOTH_CTRL
+    if [[ "${BOTH_CTRL:-Y}" =~ ^[Nn]$ ]]; then
+      echo "  1) ctrl (primary)"
+      echo "  2) ctrl-standby"
+      read -r -p "Select CTRL role [1-2]: " CTRL_ROLE_PICK
+      if [[ "$CTRL_ROLE_PICK" == "1" ]]; then
+        roles=("ctrl")
+        names=("ctrl1")
+      elif [[ "$CTRL_ROLE_PICK" == "2" ]]; then
+        roles=("ctrl-standby")
+        names=("ctrl2")
+      else
+        err "Invalid CTRL role selection"
+      fi
+    else
+      roles=("ctrl" "ctrl-standby")
+      names=("ctrl1" "ctrl2")
+    fi
+    ;;
+  3)
+    read -r -p "Number of BRAIN nodes to deploy [2]: " BRAIN_COUNT
+    BRAIN_COUNT="${BRAIN_COUNT:-2}"
+    [[ "$BRAIN_COUNT" =~ ^[0-9]+$ ]] || err "BRAIN count must be numeric"
+    (( BRAIN_COUNT >= 1 )) || err "BRAIN count must be at least 1"
+    for i in $(seq 1 "$BRAIN_COUNT"); do
+      roles+=("brain")
+      names+=("brain${i}")
+    done
+    ;;
+  4)
+    read -r -p "Number of EDGE nodes to deploy [2]: " EDGE_COUNT
+    EDGE_COUNT="${EDGE_COUNT:-2}"
+    [[ "$EDGE_COUNT" =~ ^[0-9]+$ ]] || err "EDGE count must be numeric"
+    (( EDGE_COUNT >= 1 )) || err "EDGE count must be at least 1"
+    for i in $(seq 1 "$EDGE_COUNT"); do
+      roles+=("edge")
+      names+=("edge${i}")
+    done
+    ;;
+  *)
+    err "Invalid scope selection"
+    ;;
+esac
 
 declare -a NODE_CIDR NODE_SSH
 
@@ -182,7 +241,17 @@ for i in "${!roles[@]}"; do
   NODE_SSH[$i]="$ssh_target"
 done
 
-CTRL1_IP="${NODE_CIDR[0]%%/*}"
+CTRL1_IP=""
+for i in "${!roles[@]}"; do
+  if [[ "${roles[$i]}" == "ctrl" ]]; then
+    CTRL1_IP="${NODE_CIDR[$i]%%/*}"
+    break
+  fi
+done
+if [[ -z "$CTRL1_IP" ]]; then
+  read -r -p "CTRL1 management IP (required for non-CTRL nodes or standby): " CTRL1_IP
+  [[ -n "$CTRL1_IP" ]] || err "CTRL1 IP is required"
+fi
 
 echo
 echo "Deployment plan summary"
@@ -235,12 +304,24 @@ for i in "${!roles[@]}"; do
 
   if [[ "$role" == "ctrl-standby" ]]; then
     info "Checking CTRL replication status on CTRL1"
-    ctrl1_ssh="${NODE_SSH[0]}"
+    ctrl1_ssh=""
+    for j in "${!roles[@]}"; do
+      if [[ "${roles[$j]}" == "ctrl" ]]; then
+        ctrl1_ssh="${NODE_SSH[$j]}"
+        break
+      fi
+    done
+    if [[ -z "$ctrl1_ssh" ]]; then
+      read -r -p "CTRL1 SSH target for replication check (user@host): " ctrl1_ssh
+      [[ "$ctrl1_ssh" == *"@"* ]] || err "Invalid CTRL1 SSH target"
+    fi
     ssh -o StrictHostKeyChecking=accept-new "$ctrl1_ssh" \
       "sudo docker exec aetheria-patroni patronictl -c /etc/patroni/patroni.yml list" || \
       warn "Could not verify Patroni status automatically"
-    read -r -p "Continue to Brain nodes? [y/N]: " CONTINUE_AFTER_CTRL2
-    [[ "$CONTINUE_AFTER_CTRL2" =~ ^[Yy]$ ]] || err "Stopped after CTRL2 by operator"
+    if [[ "$DEPLOY_SCOPE" == "1" ]]; then
+      read -r -p "Continue to Brain nodes? [y/N]: " CONTINUE_AFTER_CTRL2
+      [[ "$CONTINUE_AFTER_CTRL2" =~ ^[Yy]$ ]] || err "Stopped after CTRL2 by operator"
+    fi
   fi
 done
 

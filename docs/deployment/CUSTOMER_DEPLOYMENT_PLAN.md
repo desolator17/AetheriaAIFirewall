@@ -16,6 +16,11 @@ this enforced order:
 5. `EDGE1`
 6. `EDGE2`
 
+You can also run partial deployments by selecting scope in CLI:
+- CTRL only
+- BRAIN only
+- EDGE only
+
 ## What the script prompts for
 
 - Installer source:
