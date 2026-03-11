@@ -358,7 +358,63 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Network defaults — auto-detect management interface
+# Management IP and node role selection (ask first)
+# ---------------------------------------------------------------------------
+echo
+echo "Node Deployment Configuration"
+echo "============================="
+echo ""
+read -r -p "Management IP with CIDR (e.g. 192.168.100.190/24): " MGMT_IP_CIDR
+[[ -n "$MGMT_IP_CIDR" ]] || err "Management IP/CIDR is required"
+
+echo ""
+echo "Select node role to deploy on this VM"
+echo "-------------------------------------"
+echo "  1) CTRL primary (ctrl1)"
+echo "  2) CTRL secondary (ctrl2 - standby)"
+echo "  3) BRAIN node 1 (brain1)"
+echo "  4) BRAIN node 2 (brain2)"
+echo "  5) EDGE node 1 (edge1)"
+echo "  6) EDGE node 2 (edge2)"
+read -r -p "Select role [1-6]: " NODE_ROLE_SELECT
+
+roles=()
+names=()
+
+case "$NODE_ROLE_SELECT" in
+  1)
+    roles=("ctrl")
+    names=("ctrl1")
+    ;;
+  2)
+    roles=("ctrl-standby")
+    names=("ctrl2")
+    ;;
+  3)
+    roles=("brain")
+    names=("brain1")
+    ;;
+  4)
+    roles=("brain")
+    names=("brain2")
+    ;;
+  5)
+    roles=("edge")
+    names=("edge1")
+    ;;
+  6)
+    roles=("edge")
+    names=("edge2")
+    ;;
+  *)
+    err "Invalid role selection"
+    ;;
+esac
+
+info "Deploying single node: ${names[0]} (role: ${roles[0]})"
+
+# ---------------------------------------------------------------------------
+# Network configuration — auto-detect interface
 # ---------------------------------------------------------------------------
 # Detect first non-loopback interface for Rocky/Alpine
 DETECTED_IFACE=""
@@ -389,53 +445,6 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Node role selection (single node only)
-# ---------------------------------------------------------------------------
-echo
-echo "Select node role to deploy on this VM"
-echo "-------------------------------------"
-echo "  1) CTRL primary (ctrl1)"
-echo "  2) CTRL secondary (ctrl2 - standby)"
-echo "  3) BRAIN node"
-echo "  4) EDGE node"
-read -r -p "Select role [1-4]: " NODE_ROLE_SELECT
-
-roles=()
-names=()
-
-case "$NODE_ROLE_SELECT" in
-  1)
-    roles=("ctrl")
-    names=("ctrl1")
-    ;;
-  2)
-    roles=("ctrl-standby")
-    names=("ctrl2")
-    ;;
-  3)
-    read -r -p "BRAIN node number (e.g. 1 for brain1, 2 for brain2): " BRAIN_NUM
-    BRAIN_NUM="${BRAIN_NUM:-1}"
-    [[ "$BRAIN_NUM" =~ ^[0-9]+$ ]] || err "Node number must be numeric"
-    (( BRAIN_NUM >= 1 )) || err "Node number must be at least 1"
-    roles=("brain")
-    names=("brain${BRAIN_NUM}")
-    ;;
-  4)
-    read -r -p "EDGE node number (e.g. 1 for edge1, 2 for edge2): " EDGE_NUM
-    EDGE_NUM="${EDGE_NUM:-1}"
-    [[ "$EDGE_NUM" =~ ^[0-9]+$ ]] || err "Node number must be numeric"
-    (( EDGE_NUM >= 1 )) || err "Node number must be at least 1"
-    roles=("edge")
-    names=("edge${EDGE_NUM}")
-    ;;
-  *)
-    err "Invalid role selection"
-    ;;
-esac
-
-info "Deploying single node: ${names[0]} (role: ${roles[0]})"
-
-# ---------------------------------------------------------------------------
 # Node details + WireGuard IP assignment
 # ---------------------------------------------------------------------------
 declare -a NODE_CIDR NODE_SSH NODE_WG_IP
@@ -444,28 +453,19 @@ declare -A ROLE_COUNTER
 echo
 info "For fresh Rocky Linux installs: use root@host (root SSH must be enabled during OS install)."
 info "The script will create the operator account automatically during provisioning."
-echo "Enter node connection and management values:"
 
+# For single-node deployment, populate node details from earlier input
 for i in "${!roles[@]}"; do
   role="${roles[$i]}"
-  def_name="${names[$i]}"
-  echo
-  echo "Node $((i+1))/${#roles[@]}: role=${role} default-name=${def_name}"
-  read -r -p "  Node name [${def_name}]: " input_name
-  input_name="${input_name:-$def_name}"
-  names[$i]="$input_name"
+  NODE_CIDR[$i]="$MGMT_IP_CIDR"
 
-  read -r -p "  Management IP/CIDR (e.g. 192.168.100.190/24): " ip_cidr
-  [[ -n "$ip_cidr" ]] || err "Management IP/CIDR is required"
-  NODE_CIDR[$i]="$ip_cidr"
-
-  default_ssh="root@${ip_cidr%%/*}"
-  read -r -p "  SSH target user@host [${default_ssh}]: " ssh_target
+  default_ssh="root@${MGMT_IP_CIDR%%/*}"
+  read -r -p "SSH target user@host [${default_ssh}]: " ssh_target
   ssh_target="${ssh_target:-$default_ssh}"
   [[ "$ssh_target" == *"@"* ]] || err "SSH target must be in user@host format"
   NODE_SSH[$i]="$ssh_target"
 
-  # Assign WireGuard IP based on role and per-role index
+  # Assign WireGuard IP based on role
   ROLE_COUNTER[$role]=$(( ${ROLE_COUNTER[$role]:-0} ))
   NODE_WG_IP[$i]=$(assign_wg_ip "$role" "${ROLE_COUNTER[$role]}")
   ROLE_COUNTER[$role]=$(( ${ROLE_COUNTER[$role]} + 1 ))
