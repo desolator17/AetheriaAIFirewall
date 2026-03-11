@@ -357,10 +357,17 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Network defaults
+# Network defaults — auto-detect management interface
 # ---------------------------------------------------------------------------
-read -r -p "Management interface [eth0]: " MGMT_IFACE
-MGMT_IFACE="${MGMT_IFACE:-eth0}"
+# Detect first non-loopback interface for Rocky/Alpine
+DETECTED_IFACE=""
+if command -v ip >/dev/null 2>&1; then
+  DETECTED_IFACE=$(ip link show | grep "^[0-9]" | grep -v "lo:" | head -1 | awk '{print $2}' | sed 's/:$//')
+fi
+IFACE_DEFAULT="${DETECTED_IFACE:-eth0}"
+
+read -r -p "Management interface [$IFACE_DEFAULT]: " MGMT_IFACE
+MGMT_IFACE="${MGMT_IFACE:-$IFACE_DEFAULT}"
 
 read -r -p "Gateway IP: " MGMT_GW
 [[ -n "$MGMT_GW" ]] || err "Gateway is required"
