@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # =============================================================================
-# Aetheria Full-Cluster Deployment Script
-# Public bootstrap orchestrator — runs on the management host.
+# Aetheria Single-Node Deployment Script
+# Public bootstrap orchestrator — deploys one node role per VM.
+# Runs on the management host to provision individual CTRL/BRAIN/EDGE nodes.
 # Source: https://github.com/desolator17/AetheriaAIFirewall
 # =============================================================================
 
@@ -388,69 +389,51 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Deployment scope
+# Node role selection (single node only)
 # ---------------------------------------------------------------------------
 echo
-echo "Deployment scope"
-echo "----------------"
-echo "  1) FULL  (CTRL1, CTRL2, BRAIN1, BRAIN2, EDGE1, EDGE2)"
-echo "  2) CTRL only"
-echo "  3) BRAIN only"
-echo "  4) EDGE only"
-read -r -p "Select scope [1-4]: " DEPLOY_SCOPE
+echo "Select node role to deploy on this VM"
+echo "-------------------------------------"
+echo "  1) CTRL primary (ctrl1)"
+echo "  2) CTRL secondary (ctrl2 - standby)"
+echo "  3) BRAIN node"
+echo "  4) EDGE node"
+read -r -p "Select role [1-4]: " NODE_ROLE_SELECT
 
 roles=()
 names=()
 
-case "$DEPLOY_SCOPE" in
+case "$NODE_ROLE_SELECT" in
   1)
-    roles=("ctrl" "ctrl-standby" "brain" "brain" "edge" "edge")
-    names=("ctrl1" "ctrl2" "brain1" "brain2" "edge1" "edge2")
+    roles=("ctrl")
+    names=("ctrl1")
     ;;
   2)
-    read -r -p "Deploy both CTRL nodes (primary+standby)? [Y/n]: " BOTH_CTRL
-    if [[ "${BOTH_CTRL:-Y}" =~ ^[Nn]$ ]]; then
-      echo "  1) ctrl (primary)"
-      echo "  2) ctrl-standby"
-      read -r -p "Select CTRL role [1-2]: " CTRL_ROLE_PICK
-      if [[ "$CTRL_ROLE_PICK" == "1" ]]; then
-        roles=("ctrl")
-        names=("ctrl1")
-      elif [[ "$CTRL_ROLE_PICK" == "2" ]]; then
-        roles=("ctrl-standby")
-        names=("ctrl2")
-      else
-        err "Invalid CTRL role selection"
-      fi
-    else
-      roles=("ctrl" "ctrl-standby")
-      names=("ctrl1" "ctrl2")
-    fi
+    roles=("ctrl-standby")
+    names=("ctrl2")
     ;;
   3)
-    read -r -p "Number of BRAIN nodes to deploy [2]: " BRAIN_COUNT
-    BRAIN_COUNT="${BRAIN_COUNT:-2}"
-    [[ "$BRAIN_COUNT" =~ ^[0-9]+$ ]] || err "BRAIN count must be numeric"
-    (( BRAIN_COUNT >= 1 )) || err "BRAIN count must be at least 1"
-    for i in $(seq 1 "$BRAIN_COUNT"); do
-      roles+=("brain")
-      names+=("brain${i}")
-    done
+    read -r -p "BRAIN node number (e.g. 1 for brain1, 2 for brain2): " BRAIN_NUM
+    BRAIN_NUM="${BRAIN_NUM:-1}"
+    [[ "$BRAIN_NUM" =~ ^[0-9]+$ ]] || err "Node number must be numeric"
+    (( BRAIN_NUM >= 1 )) || err "Node number must be at least 1"
+    roles=("brain")
+    names=("brain${BRAIN_NUM}")
     ;;
   4)
-    read -r -p "Number of EDGE nodes to deploy [2]: " EDGE_COUNT
-    EDGE_COUNT="${EDGE_COUNT:-2}"
-    [[ "$EDGE_COUNT" =~ ^[0-9]+$ ]] || err "EDGE count must be numeric"
-    (( EDGE_COUNT >= 1 )) || err "EDGE count must be at least 1"
-    for i in $(seq 1 "$EDGE_COUNT"); do
-      roles+=("edge")
-      names+=("edge${i}")
-    done
+    read -r -p "EDGE node number (e.g. 1 for edge1, 2 for edge2): " EDGE_NUM
+    EDGE_NUM="${EDGE_NUM:-1}"
+    [[ "$EDGE_NUM" =~ ^[0-9]+$ ]] || err "Node number must be numeric"
+    (( EDGE_NUM >= 1 )) || err "Node number must be at least 1"
+    roles=("edge")
+    names=("edge${EDGE_NUM}")
     ;;
   *)
-    err "Invalid scope selection"
+    err "Invalid role selection"
     ;;
 esac
+
+info "Deploying single node: ${names[0]} (role: ${roles[0]})"
 
 # ---------------------------------------------------------------------------
 # Node details + WireGuard IP assignment
