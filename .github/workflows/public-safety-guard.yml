@@ -1,8 +1,9 @@
 name: Public Safety Guard
 
 on:
-  pull_request:
   push:
+    branches: ["main"]
+  pull_request:
     branches: ["main"]
 
 jobs:
@@ -12,38 +13,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Block private implementation paths
+      - name: Block private/core paths
         shell: bash
         run: |
           set -euo pipefail
           blocked=0
           while IFS= read -r f; do
             case "$f" in
-              src/*|ansible/roles/*|ansible/site.yml|ansible/edge.yml|ansible/brain.yml|ansible/ctrl.yml|packer/*|tests/*|.opencode/*|openspec/*)
-                echo "Blocked private path detected: $f"
+              src/*|ansible/*|packer/*|tests/*|openspec/*|molecule/*|certs/*|logs/*|build/*|data/*)
+                echo "Blocked private/core path in public repo: $f"
+                blocked=1
+                ;;
+              *vault*.yml|*.pem|*.key|*.p12|*.pfx|*.kdbx|*.env|id_rsa|id_ed25519|credentials.json|secrets.json)
+                echo "Blocked secret-like artifact in public repo: $f"
                 blocked=1
                 ;;
             esac
           done < <(git ls-files)
           if [[ "$blocked" -ne 0 ]]; then
-            echo "Public repo contains private implementation paths."
             exit 1
           fi
 
-      - name: Block sensitive file patterns
+      - name: Scan for secret markers
         shell: bash
         run: |
           set -euo pipefail
-          blocked=0
-          while IFS= read -r f; do
-            case "$f" in
-              *vault*.yml|*.pem|*.key|*.p12|*.pfx|*.kdbx|*.env|*.env.*|id_rsa|id_ed25519|credentials.json|secrets.json)
-                echo "Blocked sensitive artifact detected: $f"
-                blocked=1
-                ;;
-            esac
-          done < <(git ls-files)
-          if [[ "$blocked" -ne 0 ]]; then
-            echo "Public repo contains sensitive artifact patterns."
+          if grep -R -n -E 'BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|-----BEGIN|aws_access_key_id\s*=|aws_secret_access_key\s*=|ghp_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}' . --exclude-dir .git --exclude-dir downloads; then
+            echo "Sensitive marker detected in public repo"
             exit 1
           fi

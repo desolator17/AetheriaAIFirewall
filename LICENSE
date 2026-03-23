@@ -1,6 +1,60 @@
-Copyright (c) Aetheria.
-All rights reserved.
+AETHERIA COMMERCIAL SOFTWARE LICENSE
+Version 1.0 — Effective 2026
 
-This repository provides public customer bootstrap documentation and helper
-scripts for obtaining installer bundles. It does not grant access to private
-source code or proprietary build assets.
+Copyright (c) 2026 Aetheria. All rights reserved.
+
+NOTICE: This software is proprietary and confidential. It is not open source
+and is not licensed under Apache 2.0 or any other open source license.
+
+GRANT OF LICENSE
+Subject to the terms of your valid Aetheria license agreement (the "Agreement"),
+Aetheria grants you a limited, non-exclusive, non-transferable, non-sublicensable
+license to install and use the Aetheria software solely for your internal business
+operations, and only on the number of nodes and sites specified in your Agreement.
+
+RESTRICTIONS
+You may not:
+  (a) copy, modify, adapt, translate, or create derivative works of the software;
+  (b) reverse engineer, disassemble, decompile, or otherwise attempt to derive
+      the source code of the software;
+  (c) distribute, sell, sublicense, rent, lease, or transfer the software or
+      your rights under this license to any third party;
+  (d) remove or alter any proprietary notices, labels, or marks on the software;
+  (e) use the software to provide a hosted or managed service to third parties
+      without a separate written agreement with Aetheria.
+
+OWNERSHIP
+Aetheria retains all intellectual property rights in the software, including all
+copies and modifications. No title to or ownership of the software is transferred
+to you under this license.
+
+LICENSE KEY REQUIREMENT
+A valid license key is required to operate the software. License keys are issued
+by Aetheria via https://portal.aetheria.io and are tied to your license tier,
+the number of permitted sites, and an expiry date. Operating the software without
+a valid, unexpired license key is a material breach of this Agreement.
+
+WARRANTY DISCLAIMER
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. AETHERIA DISCLAIMS
+ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+LIMITATION OF LIABILITY
+IN NO EVENT SHALL AETHERIA BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION WITH THIS
+LICENSE OR THE USE OF THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGES. AETHERIA'S TOTAL LIABILITY SHALL NOT EXCEED THE LICENSE FEES PAID BY YOU
+IN THE TWELVE MONTHS PRECEDING THE CLAIM.
+
+TERMINATION
+This license terminates automatically if you breach any term of this Agreement or
+if your license key expires and is not renewed. Upon termination you must destroy
+all copies of the software in your possession.
+
+GOVERNING LAW
+This license shall be governed by the laws of the jurisdiction specified in your
+Agreement, without regard to its conflict of law provisions.
+
+For licensing inquiries: sales@aetheria.io
+For support: support@aetheria.io
+Customer portal: https://portal.aetheria.io
